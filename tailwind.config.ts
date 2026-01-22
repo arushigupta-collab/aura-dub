@@ -14,6 +14,10 @@ export default {
     },
     extend: {
       colors: {
+        glass: {
+          bg: 'var(--glass-bg)',
+          border: 'var(--glass-border)',
+        },
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
@@ -57,6 +61,14 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
+      },
+      backgroundImage: {
+        'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
+        'glass': 'linear-gradient(135deg, rgba(30, 30, 30, 0.7) 0%, rgba(30, 30, 30, 0.4) 100%)',
+      },
+      boxShadow: {
+        'glow': '0 0 20px rgba(193, 255, 114, 0.3)',
+        'glow-lg': '0 0 40px rgba(193, 255, 114, 0.4)',
       },
       borderRadius: {
         lg: "var(--radius)",
