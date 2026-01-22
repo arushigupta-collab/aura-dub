@@ -1,7 +1,8 @@
- import { useState, useRef } from "react";
+import { useMemo, useRef, useState } from "react";
  import { Video, Upload, Globe } from "lucide-react";
  import { Button } from "@/components/ui/button";
  import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
  import { GlassCard } from "./GlassCard";
  import { useToast } from "@/hooks/use-toast";
  import { supabase } from "@/integrations/supabase/client";
@@ -22,12 +23,19 @@
  
  export const VideoDubbing = () => {
    const [selectedLanguage, setSelectedLanguage] = useState<string>("");
+  const [useCustomLanguage, setUseCustomLanguage] = useState(false);
+  const [customLanguage, setCustomLanguage] = useState<string>("");
    const [isProcessing, setIsProcessing] = useState(false);
    const [videoUrl, setVideoUrl] = useState<string>("");
    const [dubbedUrl, setDubbedUrl] = useState<string>("");
    const [progress, setProgress] = useState(0);
    const fileInputRef = useRef<HTMLInputElement>(null);
    const { toast } = useToast();
+
+  const effectiveLanguage = useMemo(() => {
+    if (useCustomLanguage) return customLanguage.trim();
+    return selectedLanguage;
+  }, [customLanguage, selectedLanguage, useCustomLanguage]);
  
    const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
      const file = e.target.files?.[0];
@@ -39,7 +47,7 @@
    };
  
    const handleDub = async () => {
-     if (!selectedLanguage || !fileInputRef.current?.files?.[0]) {
+    if (!effectiveLanguage || !fileInputRef.current?.files?.[0]) {
        toast({
          title: "Missing information",
          description: "Please select a video and target language",
@@ -58,7 +66,7 @@
      try {
        const formData = new FormData();
        formData.append("video", fileInputRef.current.files[0]);
-       formData.append("language", selectedLanguage);
+      formData.append("language", effectiveLanguage);
  
        const { data, error } = await supabase.functions.invoke("video-dubbing", {
          body: formData,
@@ -69,11 +77,13 @@
  
        if (error) throw error;
  
-       if (data?.success && data?.data?.dubbed_video_url) {
+      if (data?.success && data?.data?.dubbed_video_url) {
          setDubbedUrl(data.data.dubbed_video_url);
          toast({
            title: "Dubbing complete!",
-           description: `Your video has been dubbed to ${LANGUAGES.find(l => l.code === selectedLanguage)?.name}`,
+          description: useCustomLanguage
+            ? `Your video has been dubbed to ${effectiveLanguage}`
+            : `Your video has been dubbed to ${LANGUAGES.find((l) => l.code === selectedLanguage)?.name}`,
          });
        } else {
          throw new Error("No dubbed video returned");
@@ -125,26 +135,50 @@
            </label>
          </div>
  
-         {videoUrl && (
+          {videoUrl && (
            <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
              <div className="relative aspect-video bg-secondary rounded-lg overflow-hidden">
                <video src={videoUrl} controls className="w-full h-full object-contain" />
              </div>
  
-             <Select value={selectedLanguage} onValueChange={setSelectedLanguage} disabled={isProcessing}>
-               <SelectTrigger>
-                 <SelectValue placeholder="Select target language" />
-               </SelectTrigger>
-               <SelectContent>
-                 {LANGUAGES.map((lang) => (
-                   <SelectItem key={lang.code} value={lang.code}>
-                     {lang.name}
-                   </SelectItem>
-                 ))}
-               </SelectContent>
-             </Select>
+              <div className="grid gap-3">
+                <Select
+                  value={useCustomLanguage ? "__custom__" : selectedLanguage}
+                  onValueChange={(v) => {
+                    if (v === "__custom__") {
+                      setUseCustomLanguage(true);
+                      return;
+                    }
+                    setUseCustomLanguage(false);
+                    setSelectedLanguage(v);
+                  }}
+                  disabled={isProcessing}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select target language" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {LANGUAGES.map((lang) => (
+                      <SelectItem key={lang.code} value={lang.code}>
+                        {lang.name}
+                      </SelectItem>
+                    ))}
+                    <SelectItem value="__custom__">Custom language code…</SelectItem>
+                  </SelectContent>
+                </Select>
+
+                {useCustomLanguage && (
+                  <Input
+                    value={customLanguage}
+                    onChange={(e) => setCustomLanguage(e.target.value)}
+                    placeholder="e.g. en, nl, tr"
+                    disabled={isProcessing}
+                    aria-label="Custom language code"
+                  />
+                )}
+              </div>
  
-             <Button onClick={handleDub} disabled={!selectedLanguage || isProcessing} className="w-full" size="lg">
+              <Button onClick={handleDub} disabled={!effectiveLanguage || isProcessing} className="w-full" size="lg">
                <Video className="mr-2 h-4 w-4" />
                {isProcessing ? "Dubbing..." : "Dub Video"}
              </Button>
