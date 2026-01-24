@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
  import { Video, Upload, Globe } from "lucide-react";
  import { Button } from "@/components/ui/button";
  import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -26,10 +26,10 @@ import { Input } from "@/components/ui/input";
   const [useCustomLanguage, setUseCustomLanguage] = useState(false);
   const [customLanguage, setCustomLanguage] = useState<string>("");
    const [isProcessing, setIsProcessing] = useState(false);
-   const [videoUrl, setVideoUrl] = useState<string>("");
+  const [videoUrl, setVideoUrl] = useState<string>("");
    const [dubbedUrl, setDubbedUrl] = useState<string>("");
    const [progress, setProgress] = useState(0);
-   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [videoInputUrl, setVideoInputUrl] = useState<string>("");
    const { toast } = useToast();
 
   const effectiveLanguage = useMemo(() => {
@@ -37,20 +37,11 @@ import { Input } from "@/components/ui/input";
     return selectedLanguage;
   }, [customLanguage, selectedLanguage, useCustomLanguage]);
  
-   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-     const file = e.target.files?.[0];
-     if (file) {
-       const url = URL.createObjectURL(file);
-       setVideoUrl(url);
-       setDubbedUrl("");
-     }
-   };
- 
    const handleDub = async () => {
-    if (!effectiveLanguage || !fileInputRef.current?.files?.[0]) {
+    if (!effectiveLanguage || !videoInputUrl.trim()) {
        toast({
          title: "Missing information",
-         description: "Please select a video and target language",
+        description: "Please paste a video URL and select a target language",
          variant: "destructive",
        });
        return;
@@ -64,13 +55,12 @@ import { Input } from "@/components/ui/input";
      }, 500);
  
      try {
-       const formData = new FormData();
-       formData.append("video", fileInputRef.current.files[0]);
-      formData.append("language", effectiveLanguage);
- 
-       const { data, error } = await supabase.functions.invoke("video-dubbing", {
-         body: formData,
-       });
+      const { data, error } = await supabase.functions.invoke("video-dubbing", {
+        body: {
+          video_url: videoInputUrl.trim(),
+          target_language: effectiveLanguage,
+        },
+      });
  
        clearInterval(progressInterval);
        setProgress(100);
@@ -115,27 +105,39 @@ import { Input } from "@/components/ui/input";
        </div>
  
        <div className="space-y-4">
-         <div>
-           <label htmlFor="video-upload">
-             <input
-               ref={fileInputRef}
-               type="file"
-               id="video-upload"
-               accept="video/*"
-               className="hidden"
-               onChange={handleFileSelect}
-               disabled={isProcessing}
-             />
-             <Button asChild variant="secondary" size="lg" className="w-full" disabled={isProcessing}>
-               <span className="cursor-pointer">
-                 <Upload className="mr-2 h-4 w-4" />
-                 {videoUrl ? "Change Video" : "Upload Video (Max 15 sec)"}
-               </span>
-             </Button>
-           </label>
-         </div>
- 
-          {videoUrl && (
+        <div className="space-y-2">
+          <label className="text-sm font-medium" htmlFor="video-url">
+            Video URL
+          </label>
+          <div className="flex gap-2">
+            <Input
+              id="video-url"
+              value={videoInputUrl}
+              onChange={(e) => {
+                setVideoInputUrl(e.target.value);
+                setDubbedUrl("");
+              }}
+              placeholder="https://... (must be publicly accessible)"
+              disabled={isProcessing}
+              inputMode="url"
+            />
+            <Button
+              type="button"
+              variant="secondary"
+              disabled={isProcessing || !videoInputUrl.trim()}
+              onClick={() => setVideoUrl(videoInputUrl.trim())}
+              title="Preview"
+            >
+              <Upload className="mr-2 h-4 w-4" />
+              Preview
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Camb.ai requires a URL it can fetch. If the link needs login, it won’t work.
+          </p>
+        </div>
+
+        {videoUrl && (
            <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
              <div className="relative aspect-video bg-secondary rounded-lg overflow-hidden">
                <video src={videoUrl} controls className="w-full h-full object-contain" />
