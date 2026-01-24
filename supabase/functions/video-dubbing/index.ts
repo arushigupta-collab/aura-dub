@@ -44,10 +44,11 @@
      cambFormData.append('model', 'mars');
  
       // Camb.ai docs: https://client.camb.ai/apis/dub
-      const response = await fetch('https://client.camb.ai/apis/dub', {
+       const response = await fetch('https://client.camb.ai/apis/dub', {
        method: 'POST',
        headers: {
-         'Authorization': `Bearer ${apiKey}`,
+          // Camb.ai expects the key as an API-key header (not Bearer auth)
+          'x-api-key': apiKey,
        },
        body: cambFormData,
      });
@@ -77,10 +78,10 @@
       const pollEveryMs = 2_000;
 
       while (Date.now() - startedAt < timeoutMs) {
-        const statusRes = await fetch(`https://client.camb.ai/apis/dub/${taskId}`, {
+         const statusRes = await fetch(`https://client.camb.ai/apis/dub/${taskId}`, {
           method: 'GET',
           headers: {
-            'Authorization': `Bearer ${apiKey}`,
+             'x-api-key': apiKey,
           },
         });
 
